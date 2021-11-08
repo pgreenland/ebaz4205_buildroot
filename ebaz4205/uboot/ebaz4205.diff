@@ -12860,10 +12860,10 @@ index cce09c47..23696f11 100644
  		/* If the PHY ID is mostly f's, we didn't find anything */
 diff --git a/include/configs/zynq-ebaz4205.h b/include/configs/zynq-ebaz4205.h
 new file mode 100644
-index 00000000..8ebf71f2
+index 00000000..000c18ae
 --- /dev/null
 +++ b/include/configs/zynq-ebaz4205.h
-@@ -0,0 +1,189 @@
+@@ -0,0 +1,169 @@
 +/* SPDX-License-Identifier: GPL-2.0+ */
 +/*
 + * (C) Copyright 2020 embed-me
@@ -12910,27 +12910,10 @@ index 00000000..8ebf71f2
 +/* We do not comply with FIT images yet */
 +#undef CONFIG_EXTRA_ENV_SETTINGS
 +#define CONFIG_EXTRA_ENV_SETTINGS \
-+	"kernel_image=uImage\0"	\
-+	"kernel_load_address=0x2080000\0" \
-+	"kernel_nand_address=0x340000\0" \
-+	"kernel_size=0x500000\0" \
-+	"mmc_loadkernel=load mmc 0 ${kernel_load_address} ${kernel_image}\0" \
-+	"nand_loadkernel=nand read ${kernel_load_address} ${kernel_nand_address} ${kernel_size}\0" \
-+	\
-+	"devicetree_image=ebaz4205-zynq7.dtb\0" \
-+	"devicetree_load_address=0x2000000\0" \
-+	"devicetree_nand_address=0x840000\0" \
-+	"devicetree_size=0x20000\0" \
-+	"mmc_loaddtb=load mmc 0 ${devicetree_load_address} ${devicetree_image}\0" \
-+	"nand_loaddtb=nand read ${devicetree_load_address} ${devicetree_nand_address} ${devicetree_size}\0" \
-+	\
-+	"bitstream_image=ebaz4205_top.bit\0"	\
-+	"bitstream_load_address=0x100000\0"	\
-+	"bitstream_nand_address=0x140000\0"	\
-+	"bitstream_size=0x200000\0"	\
-+	"fpga_config=fpga loadb 0 ${bitstream_load_address} ${bitstream_size}\0" \
-+	"mmc_loadfpga=load mmc 0 ${bitstream_load_address} ${bitstream_image}\0" \
-+	"nand_loadfpga=nand read ${bitstream_load_address} ${bitstream_nand_address} ${bitstream_size}\0" \
++	"leds_bootstate_0=gpio clear 54; gpio clear 55; true\0" \
++	"leds_bootstate_1=gpio clear 54; gpio set 55; true\0" \
++	"leds_bootstate_2=gpio set 54; gpio clear 55; true\0" \
++	"leds_bootstate_3=gpio set 54; gpio set 55; true\0" \
 +	\
 +	"loadbootenv_addr=0x2000000\0" \
 +	"bootenv=uEnv.txt\0" \
@@ -12940,16 +12923,44 @@ index 00000000..8ebf71f2
 +		"env import -t ${loadbootenv_addr} ${filesize}\0" \
 +	"mmc_uEnvtxt_exists=test -e mmc 0 /uEnv.txt\0" \
 +	\
-+	"leds_bootstate_0=gpio clear 54; gpio clear 55; true\0" \
-+	"leds_bootstate_1=gpio clear 54; gpio set 55; true\0" \
-+	"leds_bootstate_2=gpio set 54; gpio clear 55; true\0" \
-+	"leds_bootstate_3=gpio set 54; gpio set 55; true\0" \
-+	\
 +	"preboot=if env run mmc_uEnvtxt_exists; " \
 +			"then if env run mmc_loadbootenv; " \
 +				"then env run importbootenv; " \
 +			"fi; " \
 +		"fi; \0" \
++	\
++	"kernel_image=uImage\0"	\
++	"kernel_load_address=0x2080000\0" \
++	"tftp_loadkernel=tftpboot ${kernel_load_address} ${kernel_image}\0" \
++	"mmc_loadkernel=load mmc 0 ${kernel_load_address} ${kernel_image}\0" \
++	"nand_loadkernel=nand read ${kernel_load_address} kernel\0" \
++	\
++	"devicetree_image=ebaz4205-zynq7.dtb\0" \
++	"devicetree_load_address=0x2000000\0" \
++	"tftp_loaddtb=tftpboot ${devicetree_load_address} ${devicetree_image}\0" \
++	"mmc_loaddtb=load mmc 0 ${devicetree_load_address} ${devicetree_image}\0" \
++	"nand_loaddtb=nand read ${devicetree_load_address} device_tree\0" \
++	\
++	"bitstream_image=ebaz4205_top.bit\0"	\
++	"bitstream_load_address=0x100000\0"	\
++	"bitstream_size=0x200000\0"	\
++	"fpga_config=fpga loadb 0 ${bitstream_load_address} ${bitstream_size}\0" \
++	"mmc_loadfpga=load mmc 0 ${bitstream_load_address} ${bitstream_image}\0" \
++	"nand_loadfpga=nand read ${bitstream_load_address} bitstream\0" \
++	\
++	"bootargs_base=earlyprintk console=ttyPS0,115200\0" \
++	"mtdparts=\0" \
++	"rootfs=\0" \
++	"setbootargs=setenv bootargs ${bootargs_base} mtdparts=${mtdparts} ${rootfs}\0" \
++	\
++	"jtagboot=run leds_bootstate_0 && " \
++		"echo Copy Linux from TFTP to RAM... &&" \
++		"run tftp_loadkernel && " \
++		"run tftp_loaddtb && " \
++		"run setbootargs && " \
++		"run leds_bootstate_2 && " \
++		"echo Handoff to Linux kernel... && " \
++		"bootm ${kernel_load_address} - ${devicetree_load_address}\0" \
 +	\
 +	"sdboot=if mmcinfo; then " \
 +			"run leds_bootstate_0 && " \
@@ -12959,69 +12970,38 @@ index 00000000..8ebf71f2
 +			"run fpga_config && " \
 +			"echo Copying Linux from SD to RAM... && " \
 +			"run mmc_loadkernel && run mmc_loaddtb && " \
++			"run setbootargs && " \
 +			"run leds_bootstate_2 && " \
 +			"echo Handoff to Linux kernel... && " \
 +			"bootm ${kernel_load_address} - ${devicetree_load_address}; " \
 +		"fi\0" \
-+	"nandboot=run leds_bootstate_0 && " \
-+		"echo Copy FPGA image from NAND to RAM... && " \
-+		"run nand_loadfpga && " \
-+		"echo Program FPGA from RAM... && " \
-+		"run fpga_config && " \
-+		"echo Copying Linux from NAND flash to RAM... && " \
-+		"run nand_loadkernel && run nand_loaddtb && " \
-+		"run leds_bootstate_2 && " \
-+		"bootm ${kernel_load_address} - ${devicetree_load_address}\0" \
-+	"jtagboot=run leds_bootstate_0 && " \
-+		"echo TFTPing Linux to RAM... &&" \
-+		"tftpboot ${kernel_load_address} ${kernel_image} && " \
-+		"tftpboot ${devicetree_load_address} ${devicetree_image} && " \
-+		"run leds_bootstate_2 && " \
-+		"bootm ${kernel_load_address} - ${devicetree_load_address}\0" /* \ */
-+		/* DFU_ALT_INFO \ */
-+		/* BOOTENV */
-+
-+/*
-+	// PG: Alternative SD boot - initramfs generated is the rootfs, archived with cpio, compressed with gz and given a u-boot header
-+	"sdboot=if mmcinfo; then " \
-+			"run leds_bootstate_0 && " \
-+			"echo Copy FPGA image from SD to RAM... && " \
-+			"run mmc_loadfpga && " \
-+			"echo Program FPGA from RAM... && " \
-+			"run fpga_config && " \
-+			"echo Copying Linux from SD to RAM... && " \
-+			"run mmc_loadkernel && run mmc_loaddtb && run mmc_loadramdisk && " \
-+			"run leds_bootstate_2 && " \
-+			"echo Handoff to Linux kernel... && " \
-+			"bootm ${kernel_load_address} ${ramdisk_load_address} ${devicetree_load_address}; " \
-+		"fi\0" \
-+
-+	// PG: Alternative NAND boot - initramfs generated is the rootfs, archived with cpio, compressed with gz and given a u-boot header
++	\
 +	"nandboot=run leds_bootstate_0 && " \
 +		"echo Copy FPGA image from NAND to RAM... && " \
 +		"run nand_loadfpga && " \
 +		"echo Program FPGA from RAM... && " \
 +		"run fpga_config && " \
 +		"echo Copying Linux from NAND to RAM... && " \
-+		"run nand_loadkernel && run nand_loaddtb && run nand_loadramdisk && " \
++		"run nand_loadkernel && run nand_loaddtb && " \
++		"run setbootargs && " \
 +		"run leds_bootstate_2 && " \
-+		"bootm ${kernel_load_address} ${ramdisk_load_address} ${devicetree_load_address}\0" \
++		"echo Handoff to Linux kernel... && " \
++		"bootm ${kernel_load_address} - ${devicetree_load_address}\0" /* \ */
++		/* DFU_ALT_INFO \ */
++		/* BOOTENV */
 +
-+	// PG: Alternative JTAG boot - initramfs generated is the rootfs, archived with cpio, compressed with gz and given a u-boot header
-+	"jtagboot=run leds_bootstate_0 && " \
-+		"echo TFTPing Linux to RAM... &&" \
-+		"tftpboot ${kernel_load_address} ${kernel_image} && " \
-+		"tftpboot ${devicetree_load_address} ${devicetree_image} && " \
-+		"tftpboot ${ramdisk_load_address} ${ramdisk_image} && " \
-+		"run leds_bootstate_2 && " \
-+		"bootm ${kernel_load_address} ${ramdisk_load_address} ${devicetree_load_address}\0" \
++/*
++	// PG: Call to load ramdisk
 +
 +	"ramdisk_image=rootfs.cpio.uboot\0"	\
 +	"ramdisk_load_address=0x4000000\0"	\
-+	"ramdisk_nand_address=0x340000\0"	\
-+	"ramdisk_size=0x5E0000\0" \
 +	"mmc_loadramdisk=load mmc 0 ${ramdisk_load_address} ${ramdisk_image}\0" \
-+	"nand_loadramdisk=nand read ${ramdisk_load_address} ${ramdisk_nand_address} ${ramdisk_size}\0" \
++	"nand_loadramdisk=nand read ${ramdisk_load_address} ramdisk\0" \
++	"tftp_loadramdisk=tftpboot ${ramdisk_load_address} ${ramdisk_image}\0" \
++
++	// PG: Boot with ramdisk
++
++	"bootm ${kernel_load_address} ${ramdisk_load_address} ${devicetree_load_address}; " \
 +
 +	// PG: Unused env strings from embedme
 +	"s2_button_pressed_test=gpio input 20;\0" \

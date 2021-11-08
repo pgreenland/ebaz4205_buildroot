@@ -95,46 +95,15 @@
                         status = "okay";
                         compatible = "arm,pl353-nand-r2p1";
                         reg = <0 0 0x1000000>;
+                        #address-cells = <1>;
+                        #size-cells = <0>;
 
-                        partitions {
-                                compatible = "fixed-partitions";
+                        pg_hack {
                                 /*
-                                ** Driver pl35x-nand-controller.c, function pl35x_nand_chip_init for some reason is handed the partitions (this) node,
-                                ** which doesn't have a reg property. Duplicate here to stop it from bombing out when it
-                                ** can't read it
+                                ** Driver pl35x-nand-controller.c, function pl35x_nand_chip_init for some reason is handed a sub-node (this node).
+                                ** Previously this was the partitions node, representing fixed-parititions, now its just a dummy to provide the reg property.
                                 */
-                                reg = <0 0 0x1000000>;
-                                #address-cells = <1>;
-                                #size-cells = <1>;
-                        
-                                partition0: partition@0 {
-                                        label = "fsbl";
-                                        reg = <0x0 0x40000>;
-                                };
-                                partition1: partition@40000 {
-                                        label = "uboot";
-                                        reg = <0x40000 0xE0000>;
-                                };
-                                partition2: partition@120000 {
-                                        label = "uboot_env";
-                                        reg = <0x120000 0x20000>;
-                                };
-                                partition3: partition@140000 {
-                                        label = "bitstream";
-                                        reg = <0x140000 0x200000>;
-                                };
-                                partition4: partition@340000 {
-                                        label = "kernel";
-                                        reg = <0x340000 0x500000>;
-                                };
-                                partition5: partition@840000 {
-                                        label = "device_tree";
-                                        reg = <0x840000 0x20000>;
-                                };
-                                partition6: partition@860000 {
-                                        label = "rootfs";
-                                        reg = <0x860000 0x77A0000>;
-                                };
+                                reg = <0>;
                         };
                 };
         };

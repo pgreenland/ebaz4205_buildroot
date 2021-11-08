@@ -11,14 +11,11 @@ ramdisk_load_address=0x4000000
 ramdisk_nand_address=0x340000
 ramdisk_size=0x5E0000
 
-# Load initramfs if it exists and set [final_ramdisk_load_address] and [roofs] variables for booting
+# Load initramfs if it exists and set [final_ramdisk_load_address] and [rootfs] variables for booting
 sdinitramfsload=if env run sdinitramfsexists; then load mmc 0 ${ramdisk_load_address} ${ramdisk_image}; setenv final_ramdisk_load_address ${ramdisk_load_address}; else setenv final_ramdisk_load_address -; fi
 sdinitramfsaddr=if env run sdinitramfsexists; then setenv final_ramdisk_load_address ${ramdisk_load_address}; else setenv final_ramdisk_load_address -; fi
-sdinitramfsarg=if env run sdinitramfsexists; then setenv roofs ''; else setenv rootfs root=/dev/mmcblk0p2; fi
+sdinitramfsarg=if env run sdinitramfsexists; then setenv roofs ''; else setenv rootfs root=/dev/mmcblk0p2 rw rootwait; fi
 sdinitramfs=run sdinitramfsload && run sdinitramfsaddr && run sdinitramfsarg
-
-# Set [bootargs] variable using [rootfs] variable from above
-setbootargs=setenv bootargs earlyprintk console=ttyPS0,115200 ${rootfs} rw rootwait
 
 # Boot kernel using [final_ramdisk_load_address] variable from above
 gogogo=echo Handoff to Linux kernel... && bootm ${kernel_load_address} ${final_ramdisk_load_address} ${devicetree_load_address}
