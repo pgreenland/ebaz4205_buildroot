@@ -1,12 +1,27 @@
-machine_name=ebaz4205-zynq7
-kernel_image=uImage
-loadkernel=load mmc 0 ${kernel_load_address} ${kernel_image}
-devicetree_image=ebaz4205-zynq7.dtb
-loaddtb=load mmc 0 ${devicetree_load_address} ${devicetree_image}
+# Load FPGA image
+sdfpga=echo Copy FPGA image from SD to RAM... && run mmc_loadfpga && echo Program FPGA from RAM... && run fpga_config
+sdkerneldbt=echo Copying Linux from SD to RAM... && run mmc_loadkernel && run mmc_loaddtb
+
+# Check if initramfs exists on SD
+sdinitramfsexists=test -e mmc 0 /rootfs.cpio.uboot
+
+# Define initramfs properties
 ramdisk_image=rootfs.cpio.uboot
-loadramdisk=load mmc 0 ${ramdisk_load_address} ${ramdisk_image}
-bootargs=earlyprintk console=ttyPS0,115200 root=/dev/mmcblk0p2 rw rootwait
-bitstream_image=ebaz4205_top.bin
-bitstream_type=load
-fpga_config=fpga ${bitstream_type} 0 ${bitstream_load_address} ${filesize}
-sdboot=if mmcinfo; then run leds_bootstate_0;run uenvboot;echo Copying Linux from SD to RAM...;run mmc_loadfpga && run mmc_loadkernel && run mmc_loaddtb && run mmc_loadramdisk && run leds_bootstate_1; echo Configure FPGA...; run fpga_config && run leds_bootstate_2; echo Handoff to Linux kernel...;bootm ${kernel_load_address} ${ramdisk_load_address} ${devicetree_load_address}; fi
+ramdisk_load_address=0x4000000
+ramdisk_nand_address=0x340000
+ramdisk_size=0x5E0000
+
+# Load initramfs if it exists and set [final_ramdisk_load_address] and [roofs] variables for booting
+sdinitramfsload=if env run sdinitramfsexists; then load mmc 0 ${ramdisk_load_address} ${ramdisk_image}; setenv final_ramdisk_load_address ${ramdisk_load_address}; else setenv final_ramdisk_load_address -; fi
+sdinitramfsaddr=if env run sdinitramfsexists; then setenv final_ramdisk_load_address ${ramdisk_load_address}; else setenv final_ramdisk_load_address -; fi
+sdinitramfsarg=if env run sdinitramfsexists; then setenv roofs ''; else setenv rootfs root=/dev/mmcblk0p2; fi
+sdinitramfs=run sdinitramfsload && run sdinitramfsaddr && run sdinitramfsarg
+
+# Set [bootargs] variable using [rootfs] variable from above
+setbootargs=setenv bootargs earlyprintk console=ttyPS0,115200 ${rootfs} rw rootwait
+
+# Boot kernel using [final_ramdisk_load_address] variable from above
+gogogo=echo Handoff to Linux kernel... && bootm ${kernel_load_address} ${final_ramdisk_load_address} ${devicetree_load_address}
+
+# Override [sdboot] variable
+sdboot=run leds_bootstate_0 && run sdfpga && run sdkerneldbt && run sdinitramfs && run setbootargs && run leds_bootstate_2 && run gogogo

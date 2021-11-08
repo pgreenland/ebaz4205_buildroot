@@ -78,32 +78,63 @@
         gpio-mask-low = <0x5600>;
 };
 
-&mc {
-	status = "okay";
-	nand0: flash@e1000000 {
+&amba {
+        smcc: memory-controller@e000e000 {
                 status = "okay";
-                nand-ecc-mode = "none";
-                nand-bus-width = <8>;
-                partitions {
-        		compatible = "fixed-partitions";
-        		#address-cells = <1>;
-        		#size-cells = <1>;
-                
-                        partition0: partition@0 {
-        		         label = "partition0";
-                                 reg = <0x0000000 0x1ffffff>;
-                        };
-                        partition1: partition@2000000 {
-        		         label = "partition1";
-                                 reg = <0x2000000 0x3ffffff>;
-                        };
-                        partition2: partition@4000000 {
-        		         label = "partition2";
-                                 reg = <0x4000000 0x5ffffff>;
-                        };
-                        partition3: partition@6000000 {
-        		         label = "partition3";
-                                 reg = <0x6000000 0x7ffffff>;
+                compatible = "arm,pl353-smc-r2p1", "arm,primecell";
+                reg = <0xe000e000 0x0001000>;
+                clock-names = "memclk", "apb_pclk";
+                clocks = <&clkc 11>, <&clkc 44>;
+                ranges = <0x0 0x0 0xe1000000 0x1000000 /* Nand CS region */
+                        0x1 0x0 0xe2000000 0x2000000 /* SRAM/NOR CS0 region */
+                        0x2 0x0 0xe4000000 0x2000000>; /* SRAM/NOR CS1 region */
+                #address-cells = <2>;
+                #size-cells = <1>;
+
+                nand0: nand-controller@0,0 {
+                        status = "okay";
+                        compatible = "arm,pl353-nand-r2p1";
+                        reg = <0 0 0x1000000>;
+
+                        partitions {
+                                compatible = "fixed-partitions";
+                                /*
+                                ** Driver pl35x-nand-controller.c, function pl35x_nand_chip_init for some reason is handed the partitions (this) node,
+                                ** which doesn't have a reg property. Duplicate here to stop it from bombing out when it
+                                ** can't read it
+                                */
+                                reg = <0 0 0x1000000>;
+                                #address-cells = <1>;
+                                #size-cells = <1>;
+                        
+                                partition0: partition@0 {
+                                        label = "fsbl";
+                                        reg = <0x0 0x40000>;
+                                };
+                                partition1: partition@40000 {
+                                        label = "uboot";
+                                        reg = <0x40000 0xE0000>;
+                                };
+                                partition2: partition@120000 {
+                                        label = "uboot_env";
+                                        reg = <0x120000 0x20000>;
+                                };
+                                partition3: partition@140000 {
+                                        label = "bitstream";
+                                        reg = <0x140000 0x200000>;
+                                };
+                                partition4: partition@340000 {
+                                        label = "kernel";
+                                        reg = <0x340000 0x500000>;
+                                };
+                                partition5: partition@840000 {
+                                        label = "device_tree";
+                                        reg = <0x840000 0x20000>;
+                                };
+                                partition6: partition@860000 {
+                                        label = "rootfs";
+                                        reg = <0x860000 0x77A0000>;
+                                };
                         };
                 };
         };
